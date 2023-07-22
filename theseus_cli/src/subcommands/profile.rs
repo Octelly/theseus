@@ -7,6 +7,7 @@ use dunce::canonicalize;
 use eyre::{ensure, Result};
 use futures::prelude::*;
 use paris::*;
+use theseus::auth::hydra;
 use std::path::{Path, PathBuf};
 use tabled::Tabled;
 use theseus::prelude::*;
@@ -333,7 +334,7 @@ impl ProfileRun {
                     ))
             })
             .await?;
-        let credentials = auth::refresh(id).await?;
+        let credentials = hydra::refresh(id).await?;
 
         let proc_lock = profile::run_credentials(&path, &credentials).await?;
         let mut proc = proc_lock.write().await;

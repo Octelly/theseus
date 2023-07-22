@@ -20,6 +20,8 @@ use std::{process::Stdio, sync::Arc};
 use tokio::process::Command;
 use uuid::Uuid;
 
+use self::auth::HydraCredentials;
+
 mod args;
 
 pub mod auth;
@@ -290,7 +292,7 @@ pub async fn launch_minecraft(
     wrapper: &Option<String>,
     memory: &st::MemorySettings,
     resolution: &st::WindowSize,
-    credentials: &auth::Credentials,
+    credentials: &HydraCredentials,
     post_exit_hook: Option<Command>,
     profile: &Profile,
 ) -> crate::Result<Arc<tokio::sync::RwLock<MinecraftChild>>> {

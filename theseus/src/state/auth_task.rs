@@ -1,12 +1,12 @@
-use crate::launcher::auth::Credentials;
-
 use tokio::task::JoinHandle;
+
+use crate::launcher::auth::HydraCredentials;
 
 // Authentication task
 // A wrapper over the authentication task that allows it to be called from the frontend
 // without caching the task handle in the frontend
 
-pub struct AuthTask(Option<JoinHandle<crate::Result<Credentials>>>);
+pub struct AuthTask(Option<JoinHandle<crate::Result<HydraCredentials>>>);
 
 impl AuthTask {
     pub fn new() -> AuthTask {
@@ -18,7 +18,7 @@ impl AuthTask {
 
         // Creates a channel to receive the URL
         let (tx, rx) = tokio::sync::oneshot::channel::<url::Url>();
-        let task = tokio::spawn(crate::auth::authenticate(tx));
+        let task = tokio::spawn(crate::auth::hydra::authenticate(tx));
 
         // If receiver is dropped, try to get Hydra error
         let url = rx.await;
@@ -37,7 +37,7 @@ impl AuthTask {
         Ok(url)
     }
 
-    pub async fn await_auth_completion() -> crate::Result<Credentials> {
+    pub async fn await_auth_completion() -> crate::Result<HydraCredentials> {
         // Gets the task handle from the state, replacing with None
         let task = {
             let state = crate::State::get().await?;

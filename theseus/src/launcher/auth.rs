@@ -49,7 +49,7 @@ struct ProfileInfoJSON {
 
 // Login information
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Credentials {
+pub struct HydraCredentials {
     pub id: uuid::Uuid,
     pub username: String,
     pub access_token: String,
@@ -95,7 +95,7 @@ impl HydraAuthFlow<ws::tokio::ConnectStream> {
     pub async fn extract_credentials(
         &mut self,
         semaphore: &FetchSemaphore,
-    ) -> crate::Result<Credentials> {
+    ) -> crate::Result<HydraCredentials> {
         // Minecraft bearer token
         let token_resp = self
             .socket
@@ -116,7 +116,7 @@ impl HydraAuthFlow<ws::tokio::ConnectStream> {
         let info = fetch_info(&token.token, semaphore).await?;
 
         // Return structure from response
-        Ok(Credentials {
+        Ok(HydraCredentials {
             username: info.name,
             id: info.id,
             refresh_token: token.refresh_token,
@@ -128,7 +128,7 @@ impl HydraAuthFlow<ws::tokio::ConnectStream> {
 }
 
 pub async fn refresh_credentials(
-    credentials: &mut Credentials,
+    credentials: &mut HydraCredentials,
     semaphore: &FetchSemaphore,
 ) -> crate::Result<()> {
     let resp = fetch_json::<TokenJSON>(

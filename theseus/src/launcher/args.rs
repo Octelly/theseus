@@ -1,6 +1,6 @@
 //! Minecraft CLI argument logic
 // TODO: Rafactor this section
-use super::{auth::Credentials, parse_rule};
+use super::{parse_rule, auth::HydraCredentials};
 use crate::{
     state::{MemorySettings, WindowSize},
     util::{io::IOError, platform::classpath_separator},
@@ -193,7 +193,7 @@ fn parse_jvm_argument(
 pub fn get_minecraft_arguments(
     arguments: Option<&[Argument]>,
     legacy_arguments: Option<&str>,
-    credentials: &Credentials,
+    credentials: &HydraCredentials,
     version: &str,
     asset_index_name: &str,
     game_directory: &Path,

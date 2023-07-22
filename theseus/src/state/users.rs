@@ -1,6 +1,6 @@
 //! User login info
-use crate::auth::Credentials;
 use crate::data::DirectoryInfo;
+use crate::launcher::auth::HydraCredentials;
 use crate::util::fetch::{read_json, write, IoSemaphore};
 use crate::State;
 use std::collections::HashMap;
@@ -10,7 +10,7 @@ const USERS_JSON: &str = "users.json";
 
 /// The set of users stored in the launcher
 #[derive(Clone)]
-pub(crate) struct Users(pub(crate) HashMap<Uuid, Credentials>);
+pub(crate) struct Users(pub(crate) HashMap<Uuid, HydraCredentials>);
 
 impl Users {
     pub async fn init(
@@ -43,7 +43,7 @@ impl Users {
     #[tracing::instrument(skip_all)]
     pub async fn insert(
         &mut self,
-        credentials: &Credentials,
+        credentials: &HydraCredentials,
     ) -> crate::Result<&Self> {
         self.0.insert(credentials.id, credentials.clone());
         self.save().await?;
@@ -56,7 +56,7 @@ impl Users {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn get(&self, id: Uuid) -> Option<Credentials> {
+    pub fn get(&self, id: Uuid) -> Option<HydraCredentials> {
         self.0.get(&id).cloned()
     }
 

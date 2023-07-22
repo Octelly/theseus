@@ -22,7 +22,7 @@ pub mod data {
 
 pub mod prelude {
     pub use crate::{
-        auth::{self, Credentials},
+        auth::{self, hydra::HydraCredentials},
         data::*,
         event::CommandPayload,
         jre, metadata, pack, process,

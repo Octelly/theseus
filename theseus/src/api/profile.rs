@@ -3,6 +3,7 @@ use crate::event::emit::{
     emit_loading, init_loading, loading_try_for_each_concurrent,
 };
 use crate::event::LoadingBarType;
+use crate::launcher::auth::HydraCredentials;
 use crate::pack::install_from::{
     EnvType, PackDependency, PackFile, PackFileHash, PackFormat,
 };
@@ -11,7 +12,7 @@ use crate::state::ProjectMetadata;
 
 use crate::util::io::{self, IOError};
 use crate::{
-    auth::{self, refresh},
+    auth::{self, hydra::refresh},
     event::{emit::emit_profile, ProfilePayloadType},
     state::MinecraftChild,
 };
@@ -686,7 +687,7 @@ pub async fn run(path: &Path) -> crate::Result<Arc<RwLock<MinecraftChild>>> {
         refresh(default_account).await?
     } else {
         // If no default account, try to use a logged in account
-        let users = auth::users().await?;
+        let users = auth::hydra::users().await?;
         let last_account = users.first();
         if let Some(last_account) = last_account {
             refresh(last_account.id).await?
@@ -703,7 +704,7 @@ pub async fn run(path: &Path) -> crate::Result<Arc<RwLock<MinecraftChild>>> {
 #[theseus_macros::debug_pin]
 pub async fn run_credentials(
     path: &Path,
-    credentials: &auth::Credentials,
+    credentials: &HydraCredentials,
 ) -> crate::Result<Arc<RwLock<MinecraftChild>>> {
     let state = State::get().await?;
     let settings = state.settings.read().await;

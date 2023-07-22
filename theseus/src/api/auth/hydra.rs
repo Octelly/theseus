@@ -1,10 +1,12 @@
-//! Authentication flow interface
+//! Authentication flow interface for Hydra
+//! Used to log into a user's Minecraft account and get a token, and authenticate that way
+//! See labrinth.rs for authentication with a user's Modrinth account
 use crate::{launcher::auth as inner, State};
 use chrono::Utc;
 use tokio::sync::oneshot;
 
 use crate::state::AuthTask;
-pub use inner::Credentials;
+pub use inner::HydraCredentials;
 
 /// Authenticate a user with Hydra - part 1
 /// This begins the authentication flow quasi-synchronously, returning a URL
@@ -20,7 +22,7 @@ pub async fn authenticate_begin_flow() -> crate::Result<url::Url> {
 /// This completes the authentication flow quasi-synchronously, returning the credentials
 /// This can be used in conjunction with 'authenticate_begin_flow'
 /// to call authenticate and call the flow from the frontend.
-pub async fn authenticate_await_complete_flow() -> crate::Result<Credentials> {
+pub async fn authenticate_await_complete_flow() -> crate::Result<HydraCredentials> {
     let credentials = AuthTask::await_auth_completion().await?;
     Ok(credentials)
 }
@@ -38,7 +40,7 @@ pub async fn cancel_flow() -> crate::Result<()> {
 #[theseus_macros::debug_pin]
 pub async fn authenticate(
     browser_url: oneshot::Sender<url::Url>,
-) -> crate::Result<Credentials> {
+) -> crate::Result<HydraCredentials> {
     let mut flow = inner::HydraAuthFlow::new().await?;
     let state = State::get().await?;
 
@@ -67,7 +69,7 @@ pub async fn authenticate(
 /// This is the primary desired way to get credentials, as it will also refresh them.
 #[tracing::instrument]
 #[theseus_macros::debug_pin]
-pub async fn refresh(user: uuid::Uuid) -> crate::Result<Credentials> {
+pub async fn refresh(user: uuid::Uuid) -> crate::Result<HydraCredentials> {
     let state = State::get().await?;
     let mut users = state.users.write().await;
 
@@ -113,7 +115,7 @@ pub async fn has_user(user: uuid::Uuid) -> crate::Result<bool> {
 
 /// Get a copy of the list of all user credentials
 #[tracing::instrument]
-pub async fn users() -> crate::Result<Vec<Credentials>> {
+pub async fn users() -> crate::Result<Vec<HydraCredentials>> {
     let state = State::get().await?;
     let users = state.users.read().await;
     Ok(users.0.values().cloned().collect())
@@ -122,7 +124,7 @@ pub async fn users() -> crate::Result<Vec<Credentials>> {
 /// Get a specific user by user ID
 /// Prefer to use 'refresh' instead of this function
 #[tracing::instrument]
-pub async fn get_user(user: uuid::Uuid) -> crate::Result<Credentials> {
+pub async fn get_user(user: uuid::Uuid) -> crate::Result<HydraCredentials> {
     let state = State::get().await?;
     let users = state.users.read().await;
     let user = users.get(user).ok_or_else(|| {

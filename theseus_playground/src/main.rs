@@ -13,15 +13,15 @@ use tokio::time::{sleep, Duration};
 // 1) call the authenticate_begin_flow() function to get the URL to open (like you would in the frontend)
 // 2) open the URL in a browser
 // 3) call the authenticate_await_complete_flow() function to get the credentials (like you would in the frontend)
-pub async fn authenticate_run() -> theseus::Result<Credentials> {
+pub async fn authenticate_run() -> theseus::Result<HydraCredentials> {
     println!("A browser window will now open, follow the login flow there.");
-    let url = auth::authenticate_begin_flow().await?;
+    let url = auth::hydra::authenticate_begin_flow().await?;
 
     println!("URL {}", url.as_str());
     webbrowser::open(url.as_str())
         .map_err(|e| IOError::with_path(e, url.as_str()))?;
 
-    let credentials = auth::authenticate_await_complete_flow().await?;
+    let credentials = auth::hydra::authenticate_await_complete_flow().await?;
     State::sync().await?;
 
     println!("Logged in user {}.", credentials.username);
@@ -91,7 +91,7 @@ async fn main() -> theseus::Result<()> {
     State::sync().await?;
 
     // Attempt to run game
-    if auth::users().await?.is_empty() {
+    if auth::hydra::users().await?.is_empty() {
         println!("No users found, authenticating.");
         authenticate_run().await?; // could take credentials from here direct, but also deposited in state users
     }

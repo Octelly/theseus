@@ -3,7 +3,7 @@ use crate::util::{confirm_async, table};
 use eyre::Result;
 use paris::*;
 use tabled::Tabled;
-use theseus::prelude::*;
+use theseus::{prelude::*, auth::hydra};
 use tokio::sync::oneshot;
 
 #[derive(argh::FromArgs, Debug)]
@@ -42,7 +42,7 @@ impl UserAdd {
         info!("A browser window will now open, follow the login flow there.");
 
         let (tx, rx) = oneshot::channel::<url::Url>();
-        let flow = tokio::spawn(auth::authenticate(tx));
+        let flow = tokio::spawn(hydra::authenticate(tx));
 
         let url = rx.await?;
         match self.browser {
@@ -71,7 +71,7 @@ struct UserRow<'a> {
 
 impl<'a> UserRow<'a> {
     pub fn from(
-        credentials: &'a Credentials,
+        credentials: &'a HydraCredentials,
         default: Option<uuid::Uuid>,
     ) -> Self {
         Self {
@@ -91,7 +91,7 @@ impl UserList {
         let state = State::get().await?;
         let default = state.settings.read().await.default_user;
 
-        let users = auth::users().await?;
+        let users = hydra::users().await?;
         let rows = users.iter().map(|user| UserRow::from(user, default));
 
         let table = table(rows);
@@ -119,10 +119,10 @@ impl UserRemove {
         info!("Removing user {}", self.user.as_hyphenated());
 
         if confirm_async(String::from("Do you wish to continue"), true).await? {
-            if !auth::has_user(self.user).await? {
+            if !hydra::has_user(self.user).await? {
                 warn!("Profile was not managed by Theseus!");
             } else {
-                auth::remove_user(self.user).await?;
+                hydra::remove_user(self.user).await?;
                 State::sync().await?;
                 success!("User removed!");
             }

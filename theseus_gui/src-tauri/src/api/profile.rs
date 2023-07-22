@@ -224,7 +224,7 @@ pub async fn profile_run_wait(path: &Path) -> Result<()> {
 #[tauri::command]
 pub async fn profile_run_credentials(
     path: &Path,
-    credentials: Credentials,
+    credentials: HydraCredentials,
 ) -> Result<Uuid> {
     let minecraft_child = profile::run_credentials(path, &credentials).await?;
     let uuid = minecraft_child.read().await.uuid;
@@ -236,7 +236,7 @@ pub async fn profile_run_credentials(
 #[tauri::command]
 pub async fn profile_run_wait_credentials(
     path: &Path,
-    credentials: Credentials,
+    credentials: HydraCredentials,
 ) -> Result<()> {
     let proc_lock = profile::run_credentials(path, &credentials).await?;
     let mut proc = proc_lock.write().await;
