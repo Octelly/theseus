@@ -110,14 +110,14 @@ pub async fn install_minecraft(
         LoadingBarType::MinecraftDownload {
             // If we are downloading minecraft for a profile, provide its name and uuid
             profile_name: profile.metadata.name.clone(),
-            profile_path: profile.path.clone(),
+            profile_path: profile.get_profile_full_path().await?,
         },
         100.0,
         "Downloading Minecraft",
     )
     .await?;
 
-    crate::api::profile::edit(&profile.path, |prof| {
+    crate::api::profile::edit(&profile.profile_id(), |prof| {
         prof.install_stage = ProfileInstallStage::Installing;
 
         async { Ok(()) }
@@ -126,7 +126,8 @@ pub async fn install_minecraft(
     State::sync().await?;
 
     let state = State::get().await?;
-    let instance_path = &io::canonicalize(&profile.path)?;
+    let instance_path =
+        &io::canonicalize(&profile.get_profile_full_path().await?)?;
     let metadata = state.metadata.read().await;
 
     let version = metadata
@@ -178,7 +179,10 @@ pub async fn install_minecraft(
         let client_path = state
             .directories
             .version_dir(&version_jar)
+            .await
             .join(format!("{version_jar}.jar"));
+
+        let libraries_dir = state.directories.libraries_dir().await;
 
         if let Some(ref mut data) = version_info.data {
             processor_rules! {
@@ -196,7 +200,7 @@ pub async fn install_minecraft(
                     client => instance_path.to_string_lossy(),
                     server => "";
                 "LIBRARY_DIR":
-                    client => state.directories.libraries_dir().to_string_lossy(),
+                    client => libraries_dir.to_string_lossy(),
                     server => "";
             }
 
@@ -219,13 +223,13 @@ pub async fn install_minecraft(
                 let child = Command::new(&java_version.path)
                     .arg("-cp")
                     .arg(args::get_class_paths_jar(
-                        &state.directories.libraries_dir(),
+                        &libraries_dir,
                         &cp,
                         &java_version.architecture,
                     )?)
                     .arg(
                         args::get_processor_main_class(args::get_lib_path(
-                            &state.directories.libraries_dir(),
+                            &libraries_dir,
                             &processor.jar,
                             false,
                         )?)
@@ -238,7 +242,7 @@ pub async fn install_minecraft(
                         })?,
                     )
                     .args(args::get_processor_arguments(
-                        &state.directories.libraries_dir(),
+                        &libraries_dir,
                         &processor.args,
                         data,
                     )?)
@@ -271,7 +275,7 @@ pub async fn install_minecraft(
         }
     }
 
-    crate::api::profile::edit(&profile.path, |prof| {
+    crate::api::profile::edit(&profile.profile_id(), |prof| {
         prof.install_stage = ProfileInstallStage::Installed;
 
         async { Ok(()) }
@@ -311,7 +315,9 @@ pub async fn launch_minecraft(
 
     let state = State::get().await?;
     let metadata = state.metadata.read().await;
-    let instance_path = &io::canonicalize(&profile.path)?;
+
+    let instance_path = profile.get_profile_full_path().await?;
+    let instance_path = &io::canonicalize(instance_path)?;
 
     let version = metadata
         .minecraft
@@ -361,6 +367,7 @@ pub async fn launch_minecraft(
     let client_path = state
         .directories
         .version_dir(&version_jar)
+        .await
         .join(format!("{version_jar}.jar"));
 
     let args = version_info.arguments.clone().unwrap_or_default();
@@ -376,11 +383,11 @@ pub async fn launch_minecraft(
     // Check if profile has a running profile, and reject running the command if it does
     // Done late so a quick double call doesn't launch two instances
     let existing_processes =
-        process::get_uuids_by_profile_path(instance_path).await?;
+        process::get_uuids_by_profile_path(profile.profile_id()).await?;
     if let Some(uuid) = existing_processes.first() {
         return Err(crate::ErrorKind::LauncherError(format!(
             "Profile {} is already running at UUID: {uuid}",
-            instance_path.display()
+            profile.profile_id()
         ))
         .as_error());
     }
@@ -390,10 +397,10 @@ pub async fn launch_minecraft(
             args::get_jvm_arguments(
                 args.get(&d::minecraft::ArgumentType::Jvm)
                     .map(|x| x.as_slice()),
-                &state.directories.version_natives_dir(&version_jar),
-                &state.directories.libraries_dir(),
+                &state.directories.version_natives_dir(&version_jar).await,
+                &state.directories.libraries_dir().await,
                 &args::get_class_paths(
-                    &state.directories.libraries_dir(),
+                    &state.directories.libraries_dir().await,
                     version_info.libraries.as_slice(),
                     &client_path,
                     &java_version.architecture,
@@ -416,7 +423,7 @@ pub async fn launch_minecraft(
                 &version.id,
                 &version_info.asset_index.id,
                 instance_path,
-                &state.directories.assets_dir(),
+                &state.directories.assets_dir().await,
                 &version.type_,
                 *resolution,
                 &java_version.architecture,
@@ -441,14 +448,15 @@ pub async fn launch_minecraft(
     let logs_dir = {
         let st = State::get().await?;
         st.directories
-            .profile_logs_dir(profile.uuid)
+            .profile_logs_dir(&profile.profile_id())
+            .await?
             .join(&datetime_string)
     };
     io::create_dir_all(&logs_dir).await?;
 
     let stdout_log_path = logs_dir.join("stdout.log");
 
-    crate::api::profile::edit(&profile.path, |prof| {
+    crate::api::profile::edit(&profile.profile_id(), |prof| {
         prof.metadata.last_played = Some(Utc::now());
 
         async { Ok(()) }
@@ -501,7 +509,7 @@ pub async fn launch_minecraft(
     state_children
         .insert_process(
             Uuid::new_v4(),
-            instance_path.to_path_buf(),
+            profile.profile_id(),
             stdout_log_path,
             command,
             post_exit_hook,

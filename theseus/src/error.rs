@@ -7,6 +7,9 @@ pub enum ErrorKind {
     #[error("Filesystem error: {0}")]
     FSError(String),
 
+    #[error("Serialization error (INI): {0}")]
+    INIError(#[from] serde_ini::de::Error),
+
     #[error("Serialization error (JSON): {0}")]
     JSONError(#[from] serde_json::Error),
 
@@ -61,7 +64,7 @@ pub enum ErrorKind {
     #[error("Error acquiring semaphore: {0}")]
     AcquireError(#[from] tokio::sync::AcquireError),
 
-    #[error("Profile {0} is not managed by Theseus!")]
+    #[error("Profile {0} is not managed by the app!")]
     UnmanagedProfileError(String),
 
     #[error("Could not create profile: {0}")]
